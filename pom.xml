@@ -37,6 +37,30 @@
 			<artifactId>spring-boot-starter-test</artifactId>
 			<scope>test</scope>
 		</dependency>
+		<!-- test framework -->
+		<dependency>
+			<groupId>junit</groupId>
+			<artifactId>junit</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<!-- http signing -->
+		<dependency>
+			<groupId>com.authlete</groupId>
+			<artifactId>http-message-signatures</artifactId>
+			<version>1.8</version>
+		</dependency>
+		<!-- required by authlete -->
+		<dependency>
+			<groupId>com.nimbusds</groupId>
+			<artifactId>nimbus-jose-jwt</artifactId>
+			<version>10.6</version>
+		</dependency>
+		<!-- sha256 hashing -->
+		<dependency>
+			<groupId>commons-codec</groupId>
+			<artifactId>commons-codec</artifactId>
+			<version>1.16.0</version>
+		</dependency>
 	</dependencies>
 
 	<build>
