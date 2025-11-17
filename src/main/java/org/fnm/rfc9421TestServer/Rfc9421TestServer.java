@@ -6,10 +6,10 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @SpringBootApplication
-public class Rfc9421TestServerApplication {
+public class Rfc9421TestServer {
 
 	public static void main(String[] args) {
-		SpringApplication.run(Rfc9421TestServerApplication.class, args);
+		SpringApplication.run(Rfc9421TestServer.class, args);
 	}
 
 }

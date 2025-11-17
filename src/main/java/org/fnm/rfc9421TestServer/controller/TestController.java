@@ -1,7 +1,6 @@
 package org.fnm.rfc9421TestServer.controller;
 
 import com.authlete.hms.*;
-import com.authlete.hms.fapi.FapiResourceRequestSigner;
 import com.authlete.hms.fapi.FapiResourceRequestVerifier;
 import com.nimbusds.jose.jwk.JWK;
 import org.springframework.web.bind.annotation.*;
@@ -38,11 +37,10 @@ public class TestController {
      * The general steps for verifying an HTTP message signature are as follows:
      * - Extract the signature and metadata from the Signature HTTP field.
      * - Reconstruct the Signature Base.
-     * - verify that the signature is valid for the Signature Base.
+     * - Verify that the signature is valid for the Signature Base.
      *
      * @param headers the request headers
      * @param content the content or payload of the request
-     *
      * @return the result of the verification
      */
     @PostMapping("/verify")
@@ -54,12 +52,17 @@ public class TestController {
         });
 
         String contentDigest = headers.get("content-digest");
-        String signatureMetadata = headers.get("signature-input");
         String signature = headers.get("signature");
         String authZ = headers.get("authorization");
         URI uri = URI.create("http://localhost:8080/api/verify");
         JWK signingKey = JWK.parse(SIGNING_KEY);
         JWK verificationKey = signingKey.toPublicJWK();
+
+        // get the timestamp
+        String signatureMetadata = headers.get("signature-input");
+        String[] parts = signatureMetadata.split(";");
+        String requestTimestampAsString = parts[1].split("=")[1];
+        Instant requestTimestamp = Instant.ofEpochSecond(Long.parseLong(requestTimestampAsString));
 
         // Create a verifier.
         FapiResourceRequestVerifier verifier = new FapiResourceRequestVerifier()
@@ -77,12 +80,18 @@ public class TestController {
                         new ComponentIdentifier("content-digest"),
                         new ComponentIdentifier("@method")
                 ),
-                new SignatureMetadataParameters().setTag("fapi-2-request").setCreated(Instant.now()) //TODO parse timestamp
+                new SignatureMetadataParameters().setTag("fapi-2-request").setCreated(requestTimestamp)
         );
 
+        // VerificationInfo verificationInfo = verifier.verify(signature.getBytes(), metadata);
+        verifier.setCreated(requestTimestamp);
         VerificationInfo verificationInfo = verifier.verify(signature.getBytes(), metadata);
+        // VerificationInfo verificationInfo = verifier.verify(signature.getBytes(), null);
+        System.out.println(verificationInfo.getSerializedSignature());
 
-        System.out.println("Received data: " + content);
+        System.out.println("Verification result : " + verificationInfo.isVerified());
+        System.out.println("Reason: "+ verificationInfo.getReason() );
+
         return content;
     }
 }
