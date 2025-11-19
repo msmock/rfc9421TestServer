@@ -10,6 +10,8 @@ import java.security.SignatureException;
 import java.text.ParseException;
 import java.time.Instant;
 import java.util.Arrays;
+import java.util.Base64;
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -51,46 +53,46 @@ public class TestController {
             System.out.println(headerAsString);
         });
 
-        String contentDigest = headers.get("content-digest");
-        String signature = headers.get("signature");
-        String authZ = headers.get("authorization");
-        URI uri = URI.create("http://localhost:8080/api/verify");
-        JWK signingKey = JWK.parse(SIGNING_KEY);
-        JWK verificationKey = signingKey.toPublicJWK();
-
         // get the timestamp
         String signatureMetadata = headers.get("signature-input");
-        String[] parts = signatureMetadata.split(";");
-        String requestTimestampAsString = parts[1].split("=")[1];
-        Instant requestTimestamp = Instant.ofEpochSecond(Long.parseLong(requestTimestampAsString));
+        String[] metadataParts = signatureMetadata.split(";");
+
+        // String requestTimestampAsString = metadataParts[1].split("=")[1];
+        // Instant requestTimestamp = Instant.ofEpochSecond(Long.parseLong(requestTimestampAsString));
 
         // Create a verifier.
+        JWK publicJWK = JWK.parse(SIGNING_KEY).toPublicJWK();
+
         FapiResourceRequestVerifier verifier = new FapiResourceRequestVerifier()
+                .setAuthorization(headers.get("authorization"))
+                .setTargetUri(URI.create("http://localhost:8080/api/verify"))
+                .setContentDigest(headers.get("content-digest"))
                 .setMethod("POST")
-                .setTargetUri(uri)
-                .setAuthorization(authZ)
-                .setContentDigest(contentDigest)
-                .setVerificationKey(verificationKey);
+                .setVerificationKey(publicJWK);
 
         // Verify the signature.
-        SignatureMetadata metadata = new SignatureMetadata(
-                Arrays.asList(
-                        new ComponentIdentifier("authorization"),
-                        new ComponentIdentifier("@target-uri"),
-                        new ComponentIdentifier("content-digest"),
-                        new ComponentIdentifier("@method")
-                ),
-                new SignatureMetadataParameters().setTag("fapi-2-request").setCreated(requestTimestamp)
+        List<ComponentIdentifier> componentIdentifiers = Arrays.asList(
+                new ComponentIdentifier("authorization"),
+                new ComponentIdentifier("@target-uri"),
+                new ComponentIdentifier("content-digest"),
+                new ComponentIdentifier("@method")
         );
 
-        // VerificationInfo verificationInfo = verifier.verify(signature.getBytes(), metadata);
-        verifier.setCreated(requestTimestamp);
-        VerificationInfo verificationInfo = verifier.verify(signature.getBytes(), metadata);
-        // VerificationInfo verificationInfo = verifier.verify(signature.getBytes(), null);
-        System.out.println(verificationInfo.getSerializedSignature());
+        SignatureMetadataParameters parameters = new SignatureMetadataParameters().setTag("fapi-2-request").setCreated(Instant.now());
+        SignatureMetadata metadata = new SignatureMetadata(componentIdentifiers, parameters);
+
+        // parse the signature
+        String signatureAsString = headers.get("signature").trim();
+        System.out.println("signatureAsString: " + signatureAsString);
+
+        String[] signatureParts = signatureAsString.split(":");
+        byte[] parsedSignature = Base64.getDecoder().decode(signatureParts[1]); // failed
+
+        System.out.println("part 1 is " + signatureParts[1]);
+        VerificationInfo verificationInfo = verifier.verify(parsedSignature, metadata);
 
         System.out.println("Verification result : " + verificationInfo.isVerified());
-        System.out.println("Reason: "+ verificationInfo.getReason() );
+        System.out.println("Reason: " + verificationInfo.getReason());
 
         return content;
     }
