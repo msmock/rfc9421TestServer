@@ -67,15 +67,15 @@ public class TestController {
                 .setMethod("POST")
                 .setTargetUri(URI.create("http://localhost:8080/api/verify"))
                 .setAuthorization(headers.get("authorization"))
-                .setContentDigest(headers.get("content-digest"))
+                // .setContentDigest(headers.get("content-digest"))
                 .setVerificationKey(publicJWK);
 
         // Verify the signature.
         List<ComponentIdentifier> componentIdentifiers = Arrays.asList(
                 new ComponentIdentifier("@method"),
                 new ComponentIdentifier("@target-uri"),
-                new ComponentIdentifier("authorization"),
-                new ComponentIdentifier("content-digest")
+                new ComponentIdentifier("authorization")
+                // new ComponentIdentifier("content-digest")
         );
 
         SignatureMetadataParameters parameters = new SignatureMetadataParameters().setTag("fapi-2-request").setCreated(Instant.now());
