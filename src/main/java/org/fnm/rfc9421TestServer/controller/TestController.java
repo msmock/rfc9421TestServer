@@ -53,12 +53,22 @@ public class TestController {
             System.out.println(headerAsString);
         });
 
-        // get the timestamp
-        String signatureMetadata = headers.get("signature-input");
-        String[] metadataParts = signatureMetadata.split(";");
+        // Parse the "Signature" HTTP field.
+        String signatureFieldValue = headers.get("signature");
+        SignatureField signatureField =
+                SignatureField.parse(signatureFieldValue);
 
-        // String requestTimestampAsString = metadataParts[1].split("=")[1];
-        // Instant requestTimestamp = Instant.ofEpochSecond(Long.parseLong(requestTimestampAsString));
+        // Parse the "Signature-Input" HTTP field.
+        String signatureInputFieldValue = headers.get("signature-input");
+        SignatureInputField signatureInputField =
+                SignatureInputField.parse(signatureInputFieldValue);
+
+        // The tag to scan.
+        String tag = "fapi-2-request";
+
+        // Mapping between a string label and a SignatureEntry instance.
+        Map<String, SignatureEntry> sigEntries =
+                SignatureEntry.scan(signatureField, signatureInputField, tag);
 
         // Create a verifier.
         JWK publicJWK = JWK.parse(SIGNING_KEY).toPublicJWK();
@@ -67,32 +77,23 @@ public class TestController {
                 .setMethod("POST")
                 .setTargetUri(URI.create("http://localhost:8080/api/verify"))
                 .setAuthorization(headers.get("authorization"))
-                // .setContentDigest(headers.get("content-digest"))
+                .setContentDigest(headers.get("content-digest"))
                 .setVerificationKey(publicJWK);
 
         // Verify the signature.
         List<ComponentIdentifier> componentIdentifiers = Arrays.asList(
                 new ComponentIdentifier("@method"),
                 new ComponentIdentifier("@target-uri"),
-                new ComponentIdentifier("authorization")
-                // new ComponentIdentifier("content-digest")
+                new ComponentIdentifier("authorization"),
+                new ComponentIdentifier("content-digest")
         );
 
-        SignatureMetadataParameters parameters = new SignatureMetadataParameters().setTag("fapi-2-request").setCreated(Instant.now());
-        SignatureMetadata metadata = new SignatureMetadata(componentIdentifiers, parameters);
-
-        // parse the signature
-        String signatureAsString = headers.get("signature").trim();
-        System.out.println("signatureAsString: " + signatureAsString);
-
-        String[] signatureParts = signatureAsString.split(":");
-        byte[] parsedSignature = Base64.getDecoder().decode(signatureParts[1]); // failed
-
-        System.out.println("part 1 is " + signatureParts[1]);
-        VerificationInfo verificationInfo = verifier.verify(parsedSignature, metadata);
-
-        System.out.println("Verification result : " + verificationInfo.isVerified());
-        System.out.println("Reason: " + verificationInfo.getReason());
+        // For each SignatureEntry that has the specified tag ("fapi-2-request" here)
+        for (SignatureEntry sigEntry : sigEntries.values()) {
+            VerificationInfo verificationInfo = verifier.verify(sigEntry);
+            System.out.println("Verification result : " + verificationInfo.isVerified());
+            System.out.println("Reason: " + verificationInfo.getReason());
+        }
 
         return content;
     }
