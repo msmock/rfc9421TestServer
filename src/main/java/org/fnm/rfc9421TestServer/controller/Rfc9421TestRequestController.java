@@ -9,10 +9,7 @@ import java.net.URI;
 import java.security.SignatureException;
 import java.text.ParseException;
 import java.time.Instant;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
@@ -102,25 +99,15 @@ public class Rfc9421TestRequestController {
 
         // TODO response only, if all are verified
 
-        /*
-         * TODO add extensions
-         *
-        "extensions": {
-            "ihe_iua": {
-                "subject_name": "Martina Musterarzt",
-                        "home_community_id": "urn:oid:1.2.3.4"
-            },
-            "ch_epr": {
-                "user_id": "2000000090092",
-                        "user_id_qualifier": "urn:gs1:gln"
-            }
-        }*/
-
         // build the response
         String token = "Error while creating the token";
         try {
 
             Algorithm algorithm = Algorithm.HMAC512("your-secret-key");
+
+            Map<String, String> extensions = new HashMap<>();
+            extensions.put("ihe_iua", "{\"subject_name\":\"<NAME>\",\"home_community_id\":\"urn:oid:1.2.3.4\"}");
+            extensions.put("ch_epr", "{\"user_id\":\"2000000090092\",\"user_id_qualifier\":\"urn:gs1:gln\"}");
 
             token = JWT.create()
                     .withIssuer("RFC9421TestServerIssuer")
@@ -132,6 +119,7 @@ public class Rfc9421TestRequestController {
                     .withJWTId(UUID.randomUUID().toString())
                     .withClaim("userId", "123456")
                     .withClaim("scope", "user%2F*.*+openid+fhirUser+purpose_of_use%3Durn%3Aoid%3A2.16.756.5.30.1.127.3.10.5%7CAUTO+subject_role%3Durn%3Aoid%3A2.16.756.5.30.1.127.3.10.6%7CTC")
+                    .withClaim("extensions", extensions)
                     .sign(algorithm);
 
             System.out.println("Generated Token: " + token);
