@@ -8,13 +8,19 @@ import org.springframework.web.bind.annotation.*;
 import java.net.URI;
 import java.security.SignatureException;
 import java.text.ParseException;
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
+
+import com.auth0.jwt.JWT;
+import com.auth0.jwt.algorithms.Algorithm;
+import com.auth0.jwt.exceptions.JWTCreationException;
 
 @RestController
 @RequestMapping("/api")
-public class TestController {
+public class Rfc9421TestRequestController {
 
     @GetMapping("/hello")
     public String sayHello() {
@@ -66,7 +72,7 @@ public class TestController {
 
         // Mapping between a string label and a SignatureEntry instance.
         Map<String, SignatureEntry> sigEntries =
-                SignatureEntry.scan(signatureField, signatureInputField, tag);
+                SignatureEntry.scan(signatureField, signatureInputField, null);
 
         // Create a verifier.
         JWK publicJWK = JWK.parse(SIGNING_KEY).toPublicJWK();
@@ -87,12 +93,53 @@ public class TestController {
         );
 
         // For each SignatureEntry that has the specified tag ("fapi-2-request" here)
+        // Typically there is only one signature, but there may be more
         for (SignatureEntry sigEntry : sigEntries.values()) {
             VerificationInfo verificationInfo = verifier.verify(sigEntry);
             System.out.println("Verification result : " + verificationInfo.isVerified());
             System.out.println("Reason: " + verificationInfo.getReason());
         }
 
-        return content;
+        // TODO response only, if all are verified
+
+        /*
+         * TODO add extensions
+         *
+        "extensions": {
+            "ihe_iua": {
+                "subject_name": "Martina Musterarzt",
+                        "home_community_id": "urn:oid:1.2.3.4"
+            },
+            "ch_epr": {
+                "user_id": "2000000090092",
+                        "user_id_qualifier": "urn:gs1:gln"
+            }
+        }*/
+
+        // build the response
+        String token = "Error while creating the token";
+        try {
+
+            Algorithm algorithm = Algorithm.HMAC512("your-secret-key");
+
+            token = JWT.create()
+                    .withIssuer("RFC9421TestServerIssuer")
+                    .withSubject("UserId-bfe8a208-b9d0-4012-b2f5-168b949fc3cb")
+                    .withAudience("http://pixmResourceServerURL.ch")
+                    .withIssuedAt(Instant.now())
+                    .withNotBefore(Instant.now())
+                    .withExpiresAt(Instant.now().plusSeconds(300))
+                    .withJWTId(UUID.randomUUID().toString())
+                    .withClaim("userId", "123456")
+                    .withClaim("scope", "user%2F*.*+openid+fhirUser+purpose_of_use%3Durn%3Aoid%3A2.16.756.5.30.1.127.3.10.5%7CAUTO+subject_role%3Durn%3Aoid%3A2.16.756.5.30.1.127.3.10.6%7CTC")
+                    .sign(algorithm);
+
+            System.out.println("Generated Token: " + token);
+
+        } catch (JWTCreationException exception) {
+            System.err.println("Error creating JWT: " + exception.getMessage());
+        }
+
+        return token;
     }
 }
