@@ -110,7 +110,7 @@ public class Rfc9421TestRequestController {
             extensions.put("ch_epr", "{\"user_id\":\"2000000090092\",\"user_id_qualifier\":\"urn:gs1:gln\"}");
 
             token = JWT.create()
-                    .withIssuer("RFC9421TestServerIssuer")
+                    .withIssuer("RFC9421TestServer")
                     .withSubject("UserId-bfe8a208-b9d0-4012-b2f5-168b949fc3cb")
                     .withAudience("http://pixmResourceServerURL.ch")
                     .withIssuedAt(Instant.now())
